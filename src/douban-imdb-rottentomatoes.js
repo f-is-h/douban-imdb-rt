@@ -1,15 +1,20 @@
 // ==UserScript==
 // @name         豆b番——豆瓣电影显示IMDb和烂番茄评分
-// @namespace    https://github.com/fisheepx
-// @version      1.0.0
+// @namespace    https://github.com/f-is-h
+// @version      2.0.0
 // @description  在豆瓣电影页面显示IMDb和烂番茄评分
 // @author       fish
 // @license      MIT
 // @match        https://movie.douban.com/subject/*
 // @grant        GM_xmlhttpRequest
-// @homepage     https://github.com/fisheepx/douban-imdb-rt
-// @supportURL   https://github.com/fisheepx/douban-imdb-rt/issues
-// @icon         https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/icon.png
+// @grant        GM_registerMenuCommand
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @connect      www.omdbapi.com
+// @connect      www.rottentomatoes.com
+// @homepage     https://github.com/f-is-h/douban-imdb-rt
+// @supportURL   https://github.com/f-is-h/douban-imdb-rt/issues
+// @icon         https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/icon.png
 // @compatible   edge 最新版 运行正常
 // @compatible   chrome 最新版 运行正常
 // @compatible   firefox 最新版 运行正常
@@ -20,6 +25,22 @@
 
 (function() {
     'use strict';
+
+    // 从持久化存储读取 API Key
+    const OMDB_API_KEY = GM_getValue('omdb_api_key', '');
+
+    // 注册 Tampermonkey 菜单项，方便用户配置 API Key
+    GM_registerMenuCommand('设置 OMDb API Key', () => {
+        const current = GM_getValue('omdb_api_key', '');
+        const input = prompt(
+            'IMDb 评分需要免费的 OMDb API Key\n注册地址：https://www.omdbapi.com/apikey.aspx\n\n请输入你的 API Key：',
+            current
+        );
+        if (input === null) return; // 用户点了取消
+        const key = input.trim();
+        GM_setValue('omdb_api_key', key);
+        alert(key ? 'API Key 已保存，刷新页面后生效。' : 'API Key 已清除。');
+    });
 
     // SVG图标定义
     const TOMATO_ICONS = {
@@ -193,41 +214,50 @@
         }
 
         async fetchImdbRatings(imdbId) {
+            // 先从豆瓣页面同步提取原名，作为 RT 搜索的备用
+            const doubanEnglishTitle = this.getEnglishTitleFromDouban();
+
+            if (!OMDB_API_KEY) {
+                // 未配置 API Key，跳过 IMDb 评分，直接用豆瓣原名查 RT
+                this.handleNoApiKey();
+                if (doubanEnglishTitle) {
+                    await this.fetchRottenTomatoesRatings(doubanEnglishTitle);
+                }
+                return;
+            }
+
             try {
-                const response = await this.makeRequest(`https://www.imdb.com/title/${imdbId}/`);
-                const doc = new DOMParser().parseFromString(response.responseText, 'text/html');
+                const response = await this.makeRequest(
+                    `https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_API_KEY}`
+                );
+                const data = JSON.parse(response._text);
+                if (data.Response === 'False') throw new Error(data.Error);
 
-                const ratingData = this.extractImdbRating(doc);
-                this.updateImdbUI(ratingData, imdbId);
+                this.updateImdbUI({ score: data.imdbRating, count: data.imdbVotes }, imdbId);
 
-                const englishTitle = this.getEnglishTitle(doc);
+                const englishTitle = data.Title || doubanEnglishTitle;
                 if (englishTitle) {
                     await this.fetchRottenTomatoesRatings(englishTitle);
                 }
             } catch (error) {
                 this.handleError('imdb');
+                if (doubanEnglishTitle) {
+                    await this.fetchRottenTomatoesRatings(doubanEnglishTitle);
+                }
             }
         }
 
-        extractImdbRating(doc) {
-            const ratingContainer = doc.querySelector('[data-testid="hero-rating-bar__aggregate-rating__score"]');
-            if (!ratingContainer) return { score: 'N/A', count: '0' };
-
-            const score = ratingContainer.querySelector('span:first-child')?.textContent.trim();
-            const count = ratingContainer.parentElement?.querySelector('div[class*="dwhNqC"]')?.textContent.trim();
-
-            return { score, count };
-        }
-
-        getEnglishTitle(doc) {
-            return doc.querySelector('h1[data-testid="hero__pageTitle"]')?.textContent.trim();
+        getEnglishTitleFromDouban() {
+            const originalSpan = Array.from(document.querySelectorAll('#info span.pl'))
+                .find(s => s.textContent.includes('原名:'));
+            return originalSpan?.nextSibling?.textContent?.trim() || null;
         }
 
         async fetchRottenTomatoesRatings(title) {
             try {
                 const searchUrl = `https://www.rottentomatoes.com/search?search=${encodeURIComponent(title)}`;
                 const searchResponse = await this.makeRequest(searchUrl);
-                const searchDoc = new DOMParser().parseFromString(searchResponse.responseText, 'text/html');
+                const searchDoc = new DOMParser().parseFromString(searchResponse._text, 'text/html');
 
                 const movieLink = searchDoc.querySelector('search-page-media-row a[data-qa="info-name"]');
                 if (!movieLink) throw new Error('未找到匹配的烂番茄页面');
@@ -241,7 +271,7 @@
         }
 
         processRottenTomatoesPage(response, movieUrl) {
-            const doc = new DOMParser().parseFromString(response.responseText, 'text/html');
+            const doc = new DOMParser().parseFromString(response._text, 'text/html');
             const scoreData = this.extractRottenTomatoesScores(doc);
             this.updateRottenTomatoesUI(scoreData, movieUrl);
         }
@@ -337,6 +367,14 @@
             }
         }
 
+        handleNoApiKey() {
+            const ratingNum = this.imdbSection.querySelector('.rating_num');
+            const ratingSum = this.imdbSection.querySelector('span');
+            ratingNum.textContent = '未配置';
+            ratingNum.style.color = '#999';
+            ratingSum.textContent = '填入 OMDb API Key 后显示';
+        }
+
         handleError(type) {
             if (type === 'imdb') {
                 const ratingNum = this.imdbSection.querySelector('.rating_num');
@@ -360,8 +398,17 @@
                 GM_xmlhttpRequest({
                     method: "GET",
                     url: url,
-                    onload: resolve,
-                    onerror: reject
+                    timeout: 15000,
+                    onload: (response) => {
+                        response._text = response.responseText ?? response.response ?? '';
+                        if (response.status >= 200 && response.status < 300) {
+                            resolve(response);
+                        } else {
+                            reject(new Error(`HTTP ${response.status}`));
+                        }
+                    },
+                    onerror: (err) => reject(err),
+                    ontimeout: () => reject(new Error('请求超时'))
                 });
             });
         }

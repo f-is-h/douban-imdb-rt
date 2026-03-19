@@ -1,18 +1,18 @@
 # 豆b番——豆瓣电影显示IMDb和烂番茄评分
 
 <div align="center">
-<img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/alternatives/icon_original.png" width="128" height="128"/>
-<img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/equals.png" width="78" height="78" style="margin: 20px 20px;"/>
-<img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/douban.png" width="128" height="128"/>
-<img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/plus.png" width="78" height="78" style="margin: 20px 20px;"/>
-<img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/imdb.png" width="128" height="128"/>
-<img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/plus.png" width="78" height="78" style="margin: 20px 20px; "/>
-<img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/rottentomatoes.png" width="128" height="128"/>
+<img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/alternatives/icon_original.png" width="128" height="128"/>
+<img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/equals.png" width="78" height="78" style="margin: 20px 20px;"/>
+<img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/douban.png" width="128" height="128"/>
+<img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/plus.png" width="78" height="78" style="margin: 20px 20px;"/>
+<img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/imdb.png" width="128" height="128"/>
+<img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/plus.png" width="78" height="78" style="margin: 20px 20px; "/>
+<img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/rottentomatoes.png" width="128" height="128"/>
 </div>
 
 ## 效果展示
 
-![效果展示](https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/screenshots/v1/preview.png)
+![效果展示](https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/screenshots/v1/preview.png)
 
 ## 功能
 - 显示IMDb评分和评分人数
@@ -25,29 +25,40 @@
 
 ## 使用说明
 
-### 首次使用
-首次使用时，脚本会请求访问 IMDb 和烂番茄网站的权限：
+### 配置 IMDb 评分（必须）
 
-<table>
-  <tr>
-    <td valign="top"><img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/screenshots/permission-imdb.png" width="400"/></td>
-    <td valign="top"><img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/screenshots/permission-rottentomatoes.png" width="400"/></td>
-  </tr>
-  <tr>
-    <td align="center"><em>IMDb 权限请求页面</em></td>
-    <td align="center"><em>烂番茄权限请求页面</em></td>
-  </tr>
-</table>
+IMDb 评分数据通过 **OMDb API** 获取，需要一个免费的 API Key 才能显示。
 
-建议点击"**<ins>总是允许</ins>**"以获得最佳使用体验。如果不小心点击了其他选项，可以在 Tampermonkey 的设置页面中重新授权。
+> **为什么需要 API Key？**
+> 早期版本直接解析 IMDb 网页，但 IMDb 目前部署了 Cloudflare 防护，脚本发出的请求几乎必然被拦截，导致评分无法加载。切换到 OMDb API 后，数据获取稳定可靠。OMDb 免费计划每天有 1000 次额度，日常使用完全足够。
+
+**获取步骤（约 2 分钟）：**
+
+1. 打开 [omdbapi.com/apikey.aspx](https://www.omdbapi.com/apikey.aspx)
+2. 选择 **FREE**（免费，每天 1000 次，个人使用完全够用）
+3. 填写邮箱，点击 Submit
+4. 去邮箱收一封来自 OMDb 的激活邮件，点击邮件中的激活链接
+5. 激活成功后，邮件中即有你的 API Key（格式类似 `a1b2c3d4`）
+
+**填入 API Key：**
+
+1. 在任意豆瓣电影页面，点击浏览器工具栏的 **Tampermonkey 图标**
+2. 在弹出菜单中找到"**设置 OMDb API Key**"并点击
+3. 在输入框中粘贴你的 API Key，点击确定
+4. 刷新页面，IMDb 评分即可显示
+
+![设置 OMDb API Key](https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/screenshots/set-omdb-api-key.png)
+
+> 不配置 API Key 也可以正常使用，但 IMDb 评分区域会显示"未配置"，烂番茄评分不受影响。
+
+### 首次使用权限授权
+
+首次访问豆瓣电影页面时，Tampermonkey 会弹出权限请求，建议点击"**总是允许**"。
 
 ### 使用须知
-由于脚本需要从 IMDb 和烂番茄网站获取数据：
-- 确保你的网络环境可以访问 IMDb (<ins>www.imdb.com</ins>) 和烂番茄 (<ins>www.rottentomatoes.com</ins>)
-- 如果无法访问这些网站，对应的评分将无法显示
-- 如在IMDb中无此电影词条则无法显示
-- 某些在IMDb上无词条的电影无法显示评分
-- 烂番茄评分可能因错误识别电影名称而显示错误
+- 需要能访问 [www.rottentomatoes.com](https://www.rottentomatoes.com) 和 [www.omdbapi.com](https://www.omdbapi.com)（需要科学上网）
+- 豆瓣页面无 IMDb 词条的电影无法显示任何评分
+- 烂番茄评分可能因电影名称匹配不准确而显示错误
 
 ### 关于评分
 - 烂番茄图标含义：[About Rotten Tomatoes®](https://www.rottentomatoes.com/about)
@@ -62,7 +73,19 @@
 ## License
 [MIT License](LICENSE)
 
+## TODO
+
+### 功能
+- [ ] 添加烂番茄评分人数显示
+- [ ] 优化烂番茄电影名称匹配算法
+- [ ] 添加功能模块的设置开关
+- [ ]  *添加MetaCritic评分支持(待定)*
+
+### 错误
+- [ ] 某些电影页面的爆米花图标显示问题
+
+
 ## 项目地址
-<a href="https://github.com/fisheepx/douban-imdb-rt" target="_blank">
-    <img src="https://raw.githubusercontent.com/fisheepx/douban-imdb-rt/main/assets/icon/github.png" width="99" height="99"/>
+<a href="https://github.com/f-is-h/douban-imdb-rt" target="_blank">
+    <img src="https://raw.githubusercontent.com/f-is-h/douban-imdb-rt/main/assets/icon/github.png" width="99" height="99"/>
 </a>
